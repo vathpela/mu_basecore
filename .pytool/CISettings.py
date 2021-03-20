@@ -203,7 +203,7 @@ class Settings(CiSetupSettingsManager, CiBuildSettingsManager, UpdateSettingsMan
             },
             {
                 "Path": "Common/MU_TIANO",
-                "Url": "https://github.com/Microsoft/mu_tiano_plus.git",
+                "Url": "https://projectmu@dev.azure.com/projectmu/Mu_Security_Private_Release/_git/mu_tiano_plus",
                 "Branch": "release/202102"
             }
         ]
