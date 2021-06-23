@@ -1364,6 +1364,7 @@ SmmSplitSmramEntry (
   @param[in] ReservedRangeToCompare     Pointer to EFI_SMM_RESERVED_SMRAM_REGION to compare.
 
   @retval TRUE  There is overlap.
+  @retval TRUE  Math error.             MU_SEC_TCBZ3387 - Prevents potential math over and underflows.
   @retval FALSE There is no overlap.
 
 **/
@@ -1376,8 +1377,12 @@ SmmIsSmramOverlap (
   UINT64    RangeToCompareEnd;
   UINT64    ReservedRangeToCompareEnd;
 
-  RangeToCompareEnd         = RangeToCompare->CpuStart + RangeToCompare->PhysicalSize;
-  ReservedRangeToCompareEnd = ReservedRangeToCompare->SmramReservedStart + ReservedRangeToCompare->SmramReservedSize;
+  // MU_SEC_TCBZ3387 [BEGIN] - Prevents potential math over and underflows.
+  if (EFI_ERROR (SafeUint64Add ((UINT64)RangeToCompare->CpuStart, RangeToCompare->PhysicalSize, &RangeToCompareEnd)) ||
+      EFI_ERROR (SafeUint64Add ((UINT64)ReservedRangeToCompare->SmramReservedStart, ReservedRangeToCompare->SmramReservedSize, &RangeToCompareEnd))) {
+    return TRUE;
+  }
+  // MU_SEC_TCBZ3387 [END] - Prevents potential math over and underflows.
 
   if ((RangeToCompare->CpuStart >= ReservedRangeToCompare->SmramReservedStart) &&
       (RangeToCompare->CpuStart < ReservedRangeToCompareEnd)) {
