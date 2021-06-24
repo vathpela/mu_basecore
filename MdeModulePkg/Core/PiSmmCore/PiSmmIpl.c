@@ -1379,7 +1379,7 @@ SmmIsSmramOverlap (
 
   // MU_SEC_TCBZ3387 [BEGIN] - Prevents potential math over and underflows.
   if (EFI_ERROR (SafeUint64Add ((UINT64)RangeToCompare->CpuStart, RangeToCompare->PhysicalSize, &RangeToCompareEnd)) ||
-      EFI_ERROR (SafeUint64Add ((UINT64)ReservedRangeToCompare->SmramReservedStart, ReservedRangeToCompare->SmramReservedSize, &RangeToCompareEnd))) {
+      EFI_ERROR (SafeUint64Add ((UINT64)ReservedRangeToCompare->SmramReservedStart, ReservedRangeToCompare->SmramReservedSize, &ReservedRangeToCompareEnd))) {
     return TRUE;
   }
   // MU_SEC_TCBZ3387 [END] - Prevents potential math over and underflows.

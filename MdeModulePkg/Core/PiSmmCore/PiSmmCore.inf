@@ -62,6 +62,7 @@
   SmmMemLib
   BaseBinSecurityLib  ## MS_CHANGE_?
   MemoryProtectionLib ## MU_CHANGE
+  SafeIntLib          ## MU_SEC_TCBZ3387 - Prevents potential math over and underflows.
 
 [Protocols]
   gEfiDxeSmmReadyToLockProtocolGuid             ## UNDEFINED # SmiHandlerRegister
