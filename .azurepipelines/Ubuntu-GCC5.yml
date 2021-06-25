@@ -22,6 +22,9 @@ schedules:
 pr:
 - dev/*
 - release/*
+
+variables:
+- group: SecMirrorCommon
 # MU_CHANGE END
 
 jobs:

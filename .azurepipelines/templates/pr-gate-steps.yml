@@ -61,6 +61,9 @@ steps:
 # install markdownlint check prereqs
 - template: markdownlint-check-prereq-steps.yml
 
+# Set up the global git auth configuration
+- template: git-sec-auth.yml
+
 # Build repo
 # MU_CHANGE - We use CI dependencies as well as submodules.
 - task: CmdLine@1
