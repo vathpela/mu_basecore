@@ -629,8 +629,8 @@ InternalIsBufferOverlapped (
   // Also, if buff1's start is beyond buff2's end, then it's ok.
   //
   // MU_SEC_TCBZ3387 [BEGIN] - Prevents potential math over and underflows.
-  if (EFI_ERROR (SafeUintnAdd ((UINTN)Buff1, Size1, &End1) ||
-      EFI_ERROR (SafeUintnAdd ((UINTN)Buff2, Size2, &End2)))) {
+  if (EFI_ERROR (SafeUintnAdd ((UINTN)Buff1, Size1, &End1)) ||
+      EFI_ERROR (SafeUintnAdd ((UINTN)Buff2, Size2, &End2))) {
     return TRUE;
   }
   if ((End1 <= (UINTN)Buff2) || ((UINTN)Buff1 >= End2)) {
