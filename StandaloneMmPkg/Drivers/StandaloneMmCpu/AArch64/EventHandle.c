@@ -95,7 +95,17 @@ PiMmStandaloneArmTfCpuDriverEntry (
   if ((ARM_SMC_ID_MM_COMMUNICATE_AARCH64 != EventId) &&
       (ARM_SVC_ID_FFA_MSG_SEND_DIRECT_REQ_AARCH64 != EventId)) {
     DEBUG ((DEBUG_INFO, "UnRecognized Event - 0x%x\n", EventId));
-    return EFI_INVALID_PARAMETER;
+    return mMmst->MmiManage (
+                    &gArmRootRawSmcCallGuid,   // Or something like that.
+                    NULL,
+                    &EventId,
+                    sizeof (EventId)
+                    );
+
+    // Register N handlers as "raw SMC handlers".
+    // Anyone who returns EFI_SUCCESS has "handled" it.
+    // mMmst->MmiHandlerRegister (TpmHandler, &gArmRootSmcCallGuid, ??);
+    // mMmst->MmiHandlerRegister (AirConditionerHandler, &gArmRootSmcCallGuid, ??);
   }
 
   // Perform parameter validation of NsCommBufferAddr

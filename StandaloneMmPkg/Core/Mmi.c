@@ -205,7 +205,7 @@ MmiManage (
       //
       // Unexpected status code returned.
       //
-      ASSERT (FALSE);
+      // ASSERT (FALSE);      // TODO: Change this to just a debug message.
       break;
     }
   }
