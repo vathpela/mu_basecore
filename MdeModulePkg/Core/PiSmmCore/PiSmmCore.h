@@ -55,6 +55,7 @@
 #include <Library/HobLib.h>
 #include <Library/SmmMemLib.h>
 #include <Library/BaseBinSecurityLib.h>          // MS_CHANGE_?
+#include <Library/MemoryProtectionHobLib.h>         // MU_CHANGE
 #include <Library/SafeIntLib.h>                 // MU_SEC_TCBZ3387 - Prevents potential math over and underflows.
 
 #include "PiSmmCorePrivateData.h"
