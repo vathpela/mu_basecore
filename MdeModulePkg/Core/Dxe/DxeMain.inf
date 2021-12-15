@@ -15,6 +15,7 @@
   FILE_GUID                      = D6A2CB7F-6A18-4e2f-B43B-9920A733700A
   MODULE_TYPE                    = DXE_CORE
   VERSION_STRING                 = 1.0
+  PCD_IS_DRIVER                  = DXE_PCD_DRIVER
 
 
   ENTRY_POINT                    = DxeMain
@@ -75,6 +76,7 @@
 [LibraryClasses]
   BaseMemoryLib
   CacheMaintenanceLib
+  CpuDxeLib
   UefiDecompressLib
   PerformanceLib
   HobLib
@@ -94,6 +96,7 @@
   DebugAgentLib
   CpuExceptionHandlerLib
   PcdLib
+  PcdDxeLib
   BaseBinSecurityLib         ## MS_CHANGE_?
   MemoryProtectionHobLib        ## MU_CHANGE
 

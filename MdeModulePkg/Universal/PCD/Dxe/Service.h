@@ -21,7 +21,6 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #include <Library/BaseLib.h>
 #include <Library/DebugLib.h>
 #include <Library/UefiLib.h>
-#include <Library/UefiDriverEntryPoint.h>
 #include <Library/PcdLib.h>
 #include <Library/HobLib.h>
 #include <Library/MemoryAllocationLib.h>
@@ -39,9 +38,10 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 //
 // PCD_DXE_SERVICE_DRIVER_VERSION is defined in Autogen.h.
 //
-#if (PCD_SERVICE_DXE_VERSION != PCD_DXE_SERVICE_DRIVER_VERSION)
-  #error "Please make sure the version of PCD DXE Service and the generated PCD DXE Database match."
-#endif
+// TEMP MRT TEMP - The PCD_DXE_SERVICE_DRIVER_VERSION is not avaible to a library at this time
+//#if (PCD_SERVICE_DXE_VERSION != PCD_DXE_SERVICE_DRIVER_VERSION)
+//  #error "Please make sure the version of PCD DXE Service and the generated PCD DXE Database match."
+//#endif
 
 extern UINTN     mVpdBaseAddress;
 

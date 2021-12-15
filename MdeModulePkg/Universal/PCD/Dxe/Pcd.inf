@@ -287,13 +287,13 @@
 
 [Defines]
   INF_VERSION                    = 0x00010005
-  BASE_NAME                      = PcdDxe
+  BASE_NAME                      = PcdDxeLib
   MODULE_UNI_FILE                = PcdDxe.uni
   FILE_GUID                      = 80CF7257-87AB-47f9-A3FE-D50B76D89541
   MODULE_TYPE                    = DXE_DRIVER
   VERSION_STRING                 = 4.0
-  PCD_IS_DRIVER                  = DXE_PCD_DRIVER
-  ENTRY_POINT                    = PcdDxeInit
+  LIBRARY_CLASS                  = PcdDxeLib | DXE_CORE
+  CONSTRUCTOR                    = PcdDxeLibConstructor
 
 #
 # The following information is for reference only and not required by the build tools.
@@ -316,7 +316,6 @@
   UefiBootServicesTableLib
   MemoryAllocationLib
   HobLib
-  UefiDriverEntryPoint
   UefiLib
   DebugLib
   BaseLib

@@ -2954,4 +2954,15 @@ MergeMemoryMap (
   IN UINTN                      DescriptorSize
   );
 
+/**
+  CpuDxe has been loaded, start memory protections.
+
+  @param[in]    Image       Loaded Image Protocol for DxeCore
+
+**/
+VOID
+StartMemoryProtections (
+  IN EFI_LOADED_IMAGE_PROTOCOL   *LoadedImage
+  );
+
 #endif

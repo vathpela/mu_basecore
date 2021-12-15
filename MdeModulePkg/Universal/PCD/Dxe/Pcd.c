@@ -106,9 +106,9 @@ EFI_HANDLE mPcdHandle = NULL;
 UINTN      mVpdBaseAddress = 0;
 
 /**
-  Main entry for PCD DXE driver.
+  Constructor for PcdDxeLib.
 
-  This routine initialize the PCD database and install PCD_PROTOCOL.
+  This routine initializes the PCD database and install PCD_PROTOCOL.
 
   @param ImageHandle     Image handle for PCD DXE driver.
   @param SystemTable     Pointer to SystemTable.
@@ -118,13 +118,15 @@ UINTN      mVpdBaseAddress = 0;
 **/
 EFI_STATUS
 EFIAPI
-PcdDxeInit (
+PcdDxeLibConstructor (
   IN EFI_HANDLE           ImageHandle,
   IN EFI_SYSTEM_TABLE     *SystemTable
   )
 {
   EFI_STATUS Status;
   VOID       *Registration;
+
+  DEBUG ((DEBUG_INFO, "%a: Entry\n", __FUNCTION__));
 
   //
   // Make sure the Pcd Protocol is not already installed in the system
@@ -185,6 +187,7 @@ PcdDxeInit (
     mVpdBaseAddress = (UINTN) PcdGet32 (PcdVpdBaseAddress);
   }
 
+  DEBUG ((DEBUG_INFO, "%a: Exit, Code=%r\n", __FUNCTION__, Status));
   return Status;
 }
 

@@ -98,6 +98,8 @@
   ## SOMETIMES_CONSUMES ## Variable:L"MemoryTypeInformation"
   ## SOMETIMES_PRODUCES ## HOB
   gEfiMemoryTypeInformationGuid
+  gPcdDatabaseDxeHobGuid
+  gPcdDataBaseSignatureGuid
 
 [FeaturePcd.IA32]
   gEfiMdeModulePkgTokenSpaceGuid.PcdDxeIplSwitchToLongMode      ## CONSUMES

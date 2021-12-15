@@ -11,6 +11,7 @@
 
 #include <Library/DebugLib.h>
 #include <Library/DxeServicesLib.h>
+#include <Library/HobLib.h>
 #include <Library/PcdDatabaseLoaderLib.h>
 
 //
@@ -35,22 +36,20 @@ PcdDatabaseLoaderLoad (
   VOID  *FileHandle
   )
 {
-  VOID         *DxePcdDatabaseBinary;
-  UINTN        DxePcdDatabaseBinarySize;
-  EFI_STATUS   Status;
+  VOID                 *DxePcdDatabaseBinary;
+  EFI_HOB_GUID_TYPE    *GuidHob;
 
   //
-  // Search the External Pcd database from one section of current FFS,
-  // and read it to memory
+  // Locate the DXE Pcd Database loaded by DxeIpl.
   //
-  Status = GetSectionFromFfs (
-             EFI_SECTION_RAW,
-             0,
-             (VOID **) &DxePcdDatabaseBinary,
-             &DxePcdDatabaseBinarySize
-             );
+  GuidHob = GetFirstGuidHob (&gPcdDatabaseDxeHobGuid);
+  ASSERT (GuidHob != NULL);
 
-  ASSERT_EFI_ERROR (Status);
+  if (GuidHob != NULL) {
+    DxePcdDatabaseBinary = (VOID *) GET_GUID_HOB_DATA (GuidHob);
+  } else {
+    DxePcdDatabaseBinary = NULL;
+  }
 
   return DxePcdDatabaseBinary;
 }

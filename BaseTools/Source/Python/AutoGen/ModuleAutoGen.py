@@ -2242,7 +2242,7 @@ class ModuleAutoGen(AutoGen):
                         File = path.join(root, f)
                         self.CacheCopyFile(self.FfsOutputDir, SourceFfsHashDir, File)
 
-            if self.Name == "PcdPeim" or self.Name == "PcdDxe":
+            if self.Name == "PcdPeim" or self.Name == "DxeCore":
                 CreatePcdDatabaseCode(self, TemplateString(), TemplateString())
 
             print("[cache hit]: MakeCache:", self.MetaFile.Path, self.Arch)

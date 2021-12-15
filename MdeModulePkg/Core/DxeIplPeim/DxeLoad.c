@@ -276,6 +276,7 @@ DxeLoadCore (
   EDKII_PEI_CAPSULE_ON_DISK_PPI             *PeiCapsuleOnDisk;
   EFI_MEMORY_TYPE_INFORMATION               MemoryData[EfiMaxMemoryType + 1];
   VOID                                      *CapsuleOnDiskModePpi;
+  DXE_PCD_DATABASE                          *PcdDatabase;
 
   //
   // if in S3 Resume, restore configure
@@ -405,6 +406,32 @@ DxeLoadCore (
   // Look in all the FVs present in PEI and find the DXE Core FileHandle
   //
   FileHandle = DxeIplFindDxeCore ();
+
+  AuthenticationState = 0;
+  //
+  // Load the PcdDatabase for early use in DxeCore
+  //
+  Status = PeiServicesFfsFindSectionData3 (
+             EFI_SECTION_RAW,
+             0,
+             FileHandle,
+             (VOID **)&PcdDatabase,
+             &AuthenticationState
+             );
+
+  ASSERT_EFI_ERROR (Status);
+
+  if (!EFI_ERROR(Status)) {
+    if (CompareGuid (&gPcdDataBaseSignatureGuid, &PcdDatabase->Signature)) {
+      BuildGuidDataHob (
+        &gPcdDatabaseDxeHobGuid,
+        PcdDatabase,
+        PcdDatabase->LengthForAllSkus
+        );
+    } else {
+      ASSERT (FALSE);
+    }
+  }
 
   //
   // Load the DXE Core from a Firmware Volume.

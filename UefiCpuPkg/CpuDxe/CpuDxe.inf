@@ -10,12 +10,13 @@
 
 [Defines]
   INF_VERSION                    = 0x00010005
-  BASE_NAME                      = CpuDxe
+  BASE_NAME                      = CpuDxeLib
   MODULE_UNI_FILE                = CpuDxe.uni
   FILE_GUID                      = 1A1E4886-9517-440e-9FDE-3BE44CEE2136
   MODULE_TYPE                    = DXE_DRIVER
   VERSION_STRING                 = 1.0
-  ENTRY_POINT                    = InitializeCpu
+  LIBRARY_CLASS                  = DXE_CORE
+  CONSTRUCTOR                    = CpuLibDxeConstructor
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -31,7 +32,6 @@
   MemoryAllocationLib
   MtrrLib
   UefiBootServicesTableLib
-  UefiDriverEntryPoint
   LocalApicLib
   UefiCpuLib
   UefiLib
@@ -42,6 +42,7 @@
   TimerLib
   PeCoffGetEntryPointLib
   MemoryProtectionHobLib ## MU_CHANGE
+  PcdDxeLib              ## Required for proper constructor ordering
 
 [Sources]
   CpuDxe.c

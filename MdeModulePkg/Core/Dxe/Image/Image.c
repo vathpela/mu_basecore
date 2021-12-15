@@ -1,3 +1,5 @@
+
+
 /** @file
   Core image handling services to load and unload PeImage.
 
@@ -266,19 +268,6 @@ CoreInitializeImageServices (
   ASSERT_EFI_ERROR(Status);
 
   InitializeListHead (&mAvailableEmulators);
-
-  // MU_CHANGE START Use Project Mu ProtectUefiImage()
-  // ProtectUefiImage (&Image->Info, Image->LoadedImageDevicePath);
-  Status = ProtectUefiImageMu (&Image->Info, Image->LoadedImageDevicePath);
-
-  // Omit EFI_NOT_READY as it just implies gCPU is not yet installed
-  if (EFI_ERROR (Status) && Status != EFI_NOT_READY) {
-    REPORT_STATUS_CODE (
-      EFI_ERROR_CODE | EFI_ERROR_MAJOR, 
-      (EFI_SOFTWARE_DXE_CORE | EFI_SW_DXE_CORE_EC_IMAGE_LOAD_FAILURE)
-      );
-  }
-  // MU_CHANGE END
 
   return Status;
 }

@@ -284,16 +284,25 @@ DxeMain (
   // Start the Image Services.
   //
   Status = CoreInitializeImageServices (HobStart);
-  // MU_CHANGE START Assert Status but omit EFI_NOT_READY as it just implies gCPU is not yet installed
-  if (Status != EFI_NOT_READY) {
-    ASSERT_EFI_ERROR (Status);
-  }
-  // MU_CHANGE END
-  
+  ASSERT_EFI_ERROR (Status);
+
   //
   // Initialize the Global Coherency Domain Services
   //
   Status = CoreInitializeGcdServices (&HobStart, MemoryBaseAddress, MemoryLength);
+  ASSERT_EFI_ERROR (Status);
+
+  //
+  // Install the DXE Services Table into the EFI System Table's Configuration Table
+  // now as it is needed for CpuDxeLib
+  //
+  Status = CoreInstallConfigurationTable (&gEfiDxeServicesTableGuid, gDxeCoreDS);
+  ASSERT_EFI_ERROR (Status);
+
+  //
+  // Initialize the Event Services now as this is needed for PcdDxeLib and CpuDxeLib
+  //
+  Status = CoreInitializeEventServices ();
   ASSERT_EFI_ERROR (Status);
 
   //
@@ -302,6 +311,11 @@ DxeMain (
   ProcessLibraryConstructorList (gDxeCoreImageHandle, gDxeCoreST);
   PERF_CROSSMODULE_END   ("PEI");
   PERF_CROSSMODULE_BEGIN ("DXE");
+
+  ASSERT (gCpu != NULL);      // Set by CpuDxeLib constructor, and is required
+
+  // Enable Memory Protections here
+  StartMemoryProtections (gDxeCoreLoadedImage);
 
   //
   // Log MemoryBaseAddress and MemoryLength again (from
@@ -327,13 +341,7 @@ DxeMain (
   PeCoffLoaderRelocateImageExtraAction (&ImageContext);
 
   //
-  // Install the DXE Services Table into the EFI System Tables's Configuration Table
-  //
-  Status = CoreInstallConfigurationTable (&gEfiDxeServicesTableGuid, gDxeCoreDS);
-  ASSERT_EFI_ERROR (Status);
-
-  //
-  // Install the HOB List into the EFI System Tables's Configuration Table
+  // Install the HOB List into the EFI System Table's Configuration Table
   //
   Status = CoreInstallConfigurationTable (&gEfiHobListGuid, HobStart);
   ASSERT_EFI_ERROR (Status);
@@ -427,12 +435,6 @@ DxeMain (
       }
     }
   DEBUG_CODE_END ();
-
-  //
-  // Initialize the Event Services
-  //
-  Status = CoreInitializeEventServices ();
-  ASSERT_EFI_ERROR (Status);
 
   MemoryProfileInstallProtocol ();
 
@@ -725,11 +727,11 @@ CalculateEfiHdrCrc (
   Hdr->CRC32 = 0;
 
   //
-  // If gBS->CalculateCrce32 () == CoreEfiNotAvailableYet () then
+  // If mBootServices.CalculateCrce32 () == CoreEfiNotAvailableYet () then
   //  Crc will come back as zero if we set it to zero here
   //
   Crc = 0;
-  gBS->CalculateCrc32 ((UINT8 *)Hdr, Hdr->HeaderSize, &Crc);
+  mBootServices.CalculateCrc32 ((UINT8 *)Hdr, Hdr->HeaderSize, &Crc);
   Hdr->CRC32 = Crc;
 }
 

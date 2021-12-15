@@ -1211,38 +1211,20 @@ InitializeDxeNxMemoryProtectionPolicy (
   }
 }
 
-
 /**
-  A notification for CPU_ARCH protocol.
+  CpuDxe has been loaded, start memory protections.
 
-  @param[in]  Event                 Event whose notification function is being invoked.
-  @param[in]  Context               Pointer to the notification function's context,
-                                    which is implementation-dependent.
+  @param[in]    Image       Loaded Image Protocol for DxeCore
 
 **/
 VOID
-EFIAPI
-MemoryProtectionCpuArchProtocolNotify (
-  IN EFI_EVENT                Event,
-  IN VOID                     *Context
+StartMemoryProtections (
+  IN EFI_LOADED_IMAGE_PROTOCOL   *LoadedImage
   )
 {
-  EFI_STATUS                  Status;
-  EFI_LOADED_IMAGE_PROTOCOL   *LoadedImage;
-  EFI_DEVICE_PATH_PROTOCOL    *LoadedImageDevicePath;
-  UINTN                       NoHandles;
-  EFI_HANDLE                  *HandleBuffer;
-  UINTN                       Index;
+   LOADED_IMAGE_PRIVATE_DATA  *Image;
+   EFI_STATUS      Status;
 
-  DEBUG ((DEBUG_INFO, "MemoryProtectionCpuArchProtocolNotify:\n"));
-  Status = CoreLocateProtocol (&gEfiCpuArchProtocolGuid, NULL, (VOID **)&gCpu);
-  if (EFI_ERROR (Status)) {
-    goto Done;
-  }
-
-  //
-  // Apply the memory protection policy on non-BScode/RTcode regions.
-  //
   // MU_CHANGE START Update to use memory protection settings HOB
   // if (PcdGet64 (PcdDxeNxMemoryProtectionPolicy) != 0) {
   if (gMPS.DxeNxProtectionPolicy.Data) {
@@ -1259,54 +1241,17 @@ MemoryProtectionCpuArchProtocolNotify (
   // if (mImageProtectionPolicy == 0) { 
   if (!gMPS.ImageProtectionPolicy.Data) {
   // MU_CHANGE END
-    goto Done;
+    return;
   }
 
-  Status = gBS->LocateHandleBuffer (
-                  ByProtocol,
-                  &gEfiLoadedImageProtocolGuid,
-                  NULL,
-                  &NoHandles,
-                  &HandleBuffer
-                  );
-  if (EFI_ERROR (Status) && (NoHandles == 0)) {
-    goto Done;
+  Image = LOADED_IMAGE_PRIVATE_DATA_FROM_THIS (LoadedImage);
+  Status = ProtectUefiImageMu (&Image->Info, Image->LoadedImageDevicePath);
+  if (EFI_ERROR (Status)) {
+    REPORT_STATUS_CODE (
+      EFI_ERROR_CODE | EFI_ERROR_MAJOR,
+      (EFI_SOFTWARE_DXE_CORE | EFI_SW_DXE_CORE_EC_IMAGE_LOAD_FAILURE)
+      );
   }
-
-  for (Index = 0; Index < NoHandles; Index++) {
-    Status = gBS->HandleProtocol (
-                    HandleBuffer[Index],
-                    &gEfiLoadedImageProtocolGuid,
-                    (VOID **)&LoadedImage
-                    );
-    if (EFI_ERROR(Status)) {
-      continue;
-    }
-    Status = gBS->HandleProtocol (
-                    HandleBuffer[Index],
-                    &gEfiLoadedImageDevicePathProtocolGuid,
-                    (VOID **)&LoadedImageDevicePath
-                    );
-    if (EFI_ERROR(Status)) {
-      LoadedImageDevicePath = NULL;
-    }
-    // MU_CHANGE START Use Project Mu ProtectUefiImage()
-    // ProtectUefiImage (LoadedImage, LoadedImageDevicePath);
-    Status = ProtectUefiImageMu (LoadedImage, LoadedImageDevicePath);
-    if (EFI_ERROR (Status)) {
-      DEBUG ((DEBUG_ERROR, "Unable to protect Image Handle: 0x%p... Unloading Image.\n", LoadedImage->DeviceHandle));
-      Status = CoreUnloadImage (LoadedImage->DeviceHandle);
-      if (EFI_ERROR (Status)) {
-        DEBUG ((DEBUG_ERROR, "Unable to unload Image... Status: %r.\n", Status));
-      }
-    }
-    // MU_CHANGE END
-
-  }
-  FreePool (HandleBuffer);
-
-Done:
-  CoreCloseEvent (Event);
 }
 
 /**
@@ -1448,7 +1393,6 @@ CoreInitializeMemoryProtection (
   )
 {
   EFI_STATUS  Status;
-  EFI_EVENT   Event;
   EFI_EVENT   DisableNullDetectionEvent;
   EFI_EVENT   EnableNullDetectionEvent; // MU_CHANGE
   VOID        *Registration;
@@ -1468,25 +1412,6 @@ CoreInitializeMemoryProtection (
   ASSERT ((GetPermissionAttributeForMemoryType (EfiLoaderCode) & EFI_MEMORY_XP) == 0);
   ASSERT (GetPermissionAttributeForMemoryType (EfiBootServicesData) ==
           GetPermissionAttributeForMemoryType (EfiConventionalMemory));
-
-  Status = CoreCreateEvent (
-             EVT_NOTIFY_SIGNAL,
-             TPL_CALLBACK,
-             MemoryProtectionCpuArchProtocolNotify,
-             NULL,
-             &Event
-             );
-  ASSERT_EFI_ERROR(Status);
-
-  //
-  // Register for protocol notifactions on this event
-  //
-  Status = CoreRegisterProtocolNotify (
-             &gEfiCpuArchProtocolGuid,
-             Event,
-             &Registration
-             );
-  ASSERT_EFI_ERROR(Status);
 
   //
   // Register a callback to disable NULL pointer detection at EndOfDxe

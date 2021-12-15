@@ -79,8 +79,9 @@ FIXED_MTRR    mFixedMtrrTable[] = {
   },
 };
 
+extern EFI_CPU_ARCH_PROTOCOL *gCpu;
 
-EFI_CPU_ARCH_PROTOCOL  gCpu = {
+STATIC EFI_CPU_ARCH_PROTOCOL  mCpu = {
   CpuFlushCpuDataCache,
   CpuEnableInterrupt,
   CpuDisableInterrupt,
@@ -1148,13 +1149,15 @@ AddLocalApicMemorySpace (
 **/
 EFI_STATUS
 EFIAPI
-InitializeCpu (
+CpuLibDxeConstructor (
   IN EFI_HANDLE                            ImageHandle,
   IN EFI_SYSTEM_TABLE                      *SystemTable
   )
 {
   EFI_STATUS  Status;
   EFI_EVENT   IdleLoopEvent;
+
+  DEBUG ((DEBUG_INFO, "%a: Entry\n", __FUNCTION__));
 
   InitializePageTableLib();
 
@@ -1180,10 +1183,13 @@ InitializeCpu (
   //
   Status = gBS->InstallMultipleProtocolInterfaces (
                   &mCpuHandle,
-                  &gEfiCpuArchProtocolGuid, &gCpu,
+                  &gEfiCpuArchProtocolGuid, &mCpu,
                   NULL
                   );
   ASSERT_EFI_ERROR (Status);
+
+  // Set DxeMain gCpu 
+  gCpu = &mCpu;
 
   //
   // Refresh GCD memory space map according to MTRR value.
@@ -1209,6 +1215,8 @@ InitializeCpu (
   ASSERT_EFI_ERROR (Status);
 
   InitializeMpSupport ();
+
+  DEBUG ((DEBUG_INFO, "%a: Exit, Code=%r\n", __FUNCTION__, Status));
 
   return Status;
 }
