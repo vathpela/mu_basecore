@@ -459,6 +459,10 @@ MergeMemoryMap (
     NextMemoryMapEntry = NEXT_MEMORY_DESCRIPTOR (MemoryMapEntry, DescriptorSize);
 
     do {
+      if ((UINTN)NextMemoryMapEntry >= (UINTN)MemoryMapEnd) {
+        break;
+      }
+
       MergeGuardPages (NewMemoryMapEntry, NextMemoryMapEntry->PhysicalStart);
       MemoryBlockLength = (UINT64) (EfiPagesToSize (NewMemoryMapEntry->NumberOfPages));
       if (((UINTN)NextMemoryMapEntry < (UINTN)MemoryMapEnd) &&

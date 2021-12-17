@@ -54,7 +54,6 @@ typedef struct {
 
 GLOBAL_REMOVE_IF_UNREFERENCED CONST GUID_TO_STRING_PROTOCOL_ENTRY mMissingProtocols[] = {
   { &gEfiSecurityArchProtocolGuid,         "Security"           },
-  { &gEfiCpuArchProtocolGuid,              "CPU"                },
   { &gEfiMetronomeArchProtocolGuid,        "Metronome"          },
   { &gEfiTimerArchProtocolGuid,            "Timer"              },
   { &gEfiBdsArchProtocolGuid,              "Bds"                },

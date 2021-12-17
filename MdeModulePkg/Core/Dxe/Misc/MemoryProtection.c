@@ -66,7 +66,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 extern LIST_ENTRY         mGcdMemorySpaceMap;
 
-STATIC LIST_ENTRY         mProtectedImageRecordList;
+STATIC LIST_ENTRY         mProtectedImageRecordList = INITIALIZE_LIST_HEAD_VARIABLE (mProtectedImageRecordList);
 //MS_CHANGE - START
 STATIC HEAP_GUARD_DEBUG_PROTOCOL mHeapGuardDebug = {
   IsGuardPage
@@ -577,7 +577,7 @@ ProtectUefiImageMu (
   if (ImageRecord->CodeSegmentCount == 0) {
     //
     // If a UEFI executable consists of a single read+write+exec PE/COFF
-    // section, the image can still be launched but image protection 
+    // section, the image can still be launched but image protection
     // cannot be applied.
     //
     // One example that elicits this is (some) Linux kernels (with the EFI stub
@@ -906,12 +906,12 @@ GetPermissionAttributeForMemoryType (
   // } else {
   //   return 0;
   // }
-  
+
   if (GetMemoryTypeSettingFromBitfield (MemoryType, gMPS.DxeNxProtectionPolicy)) { // MU_CHANGE
     return EFI_MEMORY_XP;
   }
   return 0;
-  
+
   // MU_CHANGE END
 }
 
@@ -1155,7 +1155,7 @@ InitializeDxeNxMemoryProtectionPolicy (
            StackBase <  MemoryMapEntry->PhysicalStart +
                         LShiftU64 (MemoryMapEntry->NumberOfPages, EFI_PAGE_SHIFT)) &&
           // MU_CHANGE START Update to use memory protection settings HOB
-          // PcdGetBool (PcdCpuStackGuard)) { 
+          // PcdGetBool (PcdCpuStackGuard)) {
           gMPS.CpuStackGuard) {
           // MU_CHANGE END
         SetUefiImageMemoryAttributes (
@@ -1208,80 +1208,6 @@ InitializeDxeNxMemoryProtectionPolicy (
       Link = Link->ForwardLink;
     }
     CoreReleaseGcdMemoryLock ();
-  }
-}
-
-/**
-  CpuDxe has been loaded, start memory protections.
-
-  @param[in]    Image       Loaded Image Protocol for DxeCore
-
-**/
-VOID
-StartMemoryProtections (
-  IN EFI_LOADED_IMAGE_PROTOCOL   *LoadedImage
-  )
-{
-   LOADED_IMAGE_PRIVATE_DATA  *Image;
-   EFI_STATUS      Status;
-
-  // MU_CHANGE START Update to use memory protection settings HOB
-  // if (PcdGet64 (PcdDxeNxMemoryProtectionPolicy) != 0) {
-  if (gMPS.DxeNxProtectionPolicy.Data) {
-  // MU_CHANGE END
-    InitializeDxeNxMemoryProtectionPolicy ();
-  }
-
-  //
-  // Call notify function meant for Heap Guard.
-  //
-  HeapGuardCpuArchProtocolNotify ();
-
-  // MU_CHANGE START Update to use memory protection settings HOB
-  // if (mImageProtectionPolicy == 0) { 
-  if (!gMPS.ImageProtectionPolicy.Data) {
-  // MU_CHANGE END
-    return;
-  }
-
-  Image = LOADED_IMAGE_PRIVATE_DATA_FROM_THIS (LoadedImage);
-  Status = ProtectUefiImageMu (&Image->Info, Image->LoadedImageDevicePath);
-  if (EFI_ERROR (Status)) {
-    REPORT_STATUS_CODE (
-      EFI_ERROR_CODE | EFI_ERROR_MAJOR,
-      (EFI_SOFTWARE_DXE_CORE | EFI_SW_DXE_CORE_EC_IMAGE_LOAD_FAILURE)
-      );
-  }
-}
-
-/**
-  ExitBootServices Callback function for memory protection.
-**/
-VOID
-MemoryProtectionExitBootServicesCallback (
-  VOID
-  )
-{
-  EFI_RUNTIME_IMAGE_ENTRY       *RuntimeImage;
-  LIST_ENTRY                    *Link;
-
-  //
-  // We need remove the RT protection, because RT relocation need write code segment
-  // at SetVirtualAddressMap(). We cannot assume OS/Loader has taken over page table at that time.
-  //
-  // Firmware does not own page tables after ExitBootServices(), so the OS would
-  // have to relax protection of RT code pages across SetVirtualAddressMap(), or
-  // delay setting protections on RT code pages until after SetVirtualAddressMap().
-  // OS may set protection on RT based upon EFI_MEMORY_ATTRIBUTES_TABLE later.
-  //
-  // MU_CHANGE START Update to use memory protection settings HOB
-  // if (mImageProtectionPolicy != 0) {
-  if (gMPS.ImageProtectionPolicy.Data) {
-  // MU_CHANGE END
-    for (Link = gRuntime->ImageHead.ForwardLink; Link != &gRuntime->ImageHead; Link = Link->ForwardLink) {
-      RuntimeImage = BASE_CR (Link, EFI_RUNTIME_IMAGE_ENTRY, Link);
-      SetUefiImageMemoryAttributes ((UINT64)(UINTN)RuntimeImage->ImageBase, ALIGN_VALUE(RuntimeImage->ImageSize, EFI_PAGE_SIZE), 0);
-    }
   }
 }
 
@@ -1349,10 +1275,8 @@ DisableNullDetection (
 
 **/
 VOID
-EFIAPI
 EnableNullDetection (
-  EFI_EVENT                               Event,
-  VOID                                    *Context
+  VOID
   )
 {
   EFI_STATUS                        Status;
@@ -1384,7 +1308,62 @@ EnableNullDetection (
 // MU_CHANGE END
 
 /**
-  Initialize Memory Protection support.
+  A notification for CPU_ARCH protocol
+
+  DxeCore needs this callback to run the default NX policy before the MpInit portion
+  of the CpuDxe constructor is run.
+
+  @param[in]  Event                 Event whose notification function is being invoked.
+  @param[in]  Context               Pointer to the notification function's context,
+                                    which is implementation-dependent.
+
+**/
+VOID
+EFIAPI
+MemoryProtectionCpuArchProtocolNotify (
+  IN EFI_EVENT                Event,
+  IN VOID                     *Context
+  )
+{
+  LOADED_IMAGE_PRIVATE_DATA  *Image;
+  EFI_STATUS                 Status;
+
+  CoreCloseEvent (Event);
+
+  ASSERT (gCpu != NULL);      // Set by CpuDxeLib constructor, and is required
+
+  // MU_CHANGE START Update to use memory protection settings HOB
+  // if (PcdGet64 (PcdDxeNxMemoryProtectionPolicy) != 0) {
+  if (gMPS.DxeNxProtectionPolicy.Data) {
+  // MU_CHANGE END
+    InitializeDxeNxMemoryProtectionPolicy ();
+  }
+
+  //
+  // Call notify function meant for Heap Guard.
+  //
+  HeapGuardCpuArchProtocolNotify ();
+
+  // if (mImageProtectionPolicy == 0) {
+  if (gMPS.ImageProtectionPolicy.Data) {
+    Image = LOADED_IMAGE_PRIVATE_DATA_FROM_THIS (gDxeCoreLoadedImage);
+    Status = ProtectUefiImageMu (&Image->Info, Image->LoadedImageDevicePath);
+    if (EFI_ERROR (Status)) {
+      REPORT_STATUS_CODE (
+        EFI_ERROR_CODE | EFI_ERROR_MAJOR,
+        (EFI_SOFTWARE_DXE_CORE | EFI_SW_DXE_CORE_EC_IMAGE_LOAD_FAILURE)
+        );
+    }
+  }
+
+  if (gMPS.NullPointerDetectionPolicy.Fields.UefiNullDetection) {
+    EnableNullDetection ();
+  }
+}
+
+/**
+  Memory Protections "Constructor"
+
 **/
 VOID
 EFIAPI
@@ -1392,14 +1371,30 @@ CoreInitializeMemoryProtection (
   VOID
   )
 {
-  EFI_STATUS  Status;
-  EFI_EVENT   DisableNullDetectionEvent;
-  EFI_EVENT   EnableNullDetectionEvent; // MU_CHANGE
+  EFI_EVENT   Event;
   VOID        *Registration;
+  EFI_STATUS  Status;
+
+  Status = CoreCreateEvent (
+             EVT_NOTIFY_SIGNAL,
+             TPL_CALLBACK,
+             MemoryProtectionCpuArchProtocolNotify,
+             NULL,
+             &Event
+             );
+  ASSERT_EFI_ERROR(Status);
+
+  //
+  // Register for protocol notifications on this event
+  //
+  Status = CoreRegisterProtocolNotify (
+             &gEfiCpuArchProtocolGuid,
+             Event,
+             &Registration
+             );
+  ASSERT_EFI_ERROR(Status);
 
   // mImageProtectionPolicy = gMPS.ImageProtectionPolicy; // MU_CHANGE
-
-  InitializeListHead (&mProtectedImageRecordList);
 
   //
   // Sanity check the Image Protection Policy setting: // MU_CHANGE
@@ -1422,50 +1417,32 @@ CoreInitializeMemoryProtection (
   // if ((PcdGet8 (PcdNullPointerDetectionPropertyMask) & (BIT0|BIT7))
   //      == (BIT0|BIT7)) {
   if (gMPS.NullPointerDetectionPolicy.Fields.UefiNullDetection) {
+     EnableNullDetection ();
+ }
 
-    // PEI phase has been updated to always set page zero as allocated
-    // so it can be safely set as RP
-    Status = CoreCreateEvent (
-               EVT_NOTIFY_SIGNAL,
-               TPL_CALLBACK,
-               EnableNullDetection,
-               NULL,
-               &EnableNullDetectionEvent
-               );
-    ASSERT_EFI_ERROR(Status);
-
-    Status = CoreRegisterProtocolNotify (
-               &gEfiCpuArchProtocolGuid,
-               EnableNullDetectionEvent,
-               &Registration
-               );
-    ASSERT_EFI_ERROR(Status);
-
-    if (!EFI_ERROR (Status)) {
-      // If both DisableEndOfDxe and DisableReadyToBoot are enabled, just
-      // create the event to disable at EndOfDxe because that event is sooner
-      if (gMPS.NullPointerDetectionPolicy.Fields.DisableEndOfDxe) {
-        Status = CoreCreateEventEx (
-                        EVT_NOTIFY_SIGNAL,
-                        TPL_NOTIFY,
-                        DisableNullDetection,
-                        NULL,
-                        &gEfiEndOfDxeEventGroupGuid,
-                        &DisableNullDetectionEvent
-                        );
-      } else if (gMPS.NullPointerDetectionPolicy.Fields.DisableReadyToBoot) {
-        Status = CoreCreateEventEx (
-                        EVT_NOTIFY_SIGNAL,
-                        TPL_NOTIFY,
-                        DisableNullDetection,
-                        NULL,
-                        &gEfiEventReadyToBootGuid,
-                        &DisableNullDetectionEvent
-                        );
-      }
-    }
-    ASSERT_EFI_ERROR (Status);
+  // If both DisableEndOfDxe and DisableReadyToBoot are enabled, just
+  // create the event to disable at EndOfDxe because that event is sooner
+  if (gMPS.NullPointerDetectionPolicy.Fields.DisableEndOfDxe) {
+    Status = CoreCreateEventEx (
+                    EVT_NOTIFY_SIGNAL,
+                    TPL_NOTIFY,
+                    DisableNullDetection,
+                    NULL,
+                    &gEfiEndOfDxeEventGroupGuid,
+                    &Event
+                    );
+  } else if (gMPS.NullPointerDetectionPolicy.Fields.DisableReadyToBoot) {
+    Status = CoreCreateEventEx (
+                    EVT_NOTIFY_SIGNAL,
+                    TPL_NOTIFY,
+                    DisableNullDetection,
+                    NULL,
+                    &gEfiEventReadyToBootGuid,
+                    &Event
+                    );
   }
+  ASSERT_EFI_ERROR (Status);
+
   // MU_CHANGE END
 
   //
@@ -1480,12 +1457,45 @@ CoreInitializeMemoryProtection (
       &gHeapGuardDebugProtocolGuid,
       &mHeapGuardDebug,
       NULL);
-    DEBUG ((DEBUG_INFO, "Installed gHeapGuardDebugProtocolGuid - %r\n", Status));
-  }
-  // MSCHANGE END
 
-  return ;
+    DEBUG ((DEBUG_INFO, "Installed gHeapGuardDebugProtocolGuid - %r\n", Status));
+    ASSERT_EFI_ERROR (Status);
+  }
+
+  return;
 }
+
+/**
+  ExitBootServices Callback function for memory protection.
+**/
+VOID
+MemoryProtectionExitBootServicesCallback (
+  VOID
+  )
+{
+  EFI_RUNTIME_IMAGE_ENTRY       *RuntimeImage;
+  LIST_ENTRY                    *Link;
+
+  //
+  // We need remove the RT protection, because RT relocation need write code segment
+  // at SetVirtualAddressMap(). We cannot assume OS/Loader has taken over page table at that time.
+  //
+  // Firmware does not own page tables after ExitBootServices(), so the OS would
+  // have to relax protection of RT code pages across SetVirtualAddressMap(), or
+  // delay setting protections on RT code pages until after SetVirtualAddressMap().
+  // OS may set protection on RT based upon EFI_MEMORY_ATTRIBUTES_TABLE later.
+  //
+  // MU_CHANGE START Update to use memory protection settings HOB
+  // if (mImageProtectionPolicy != 0) {
+  if (gMPS.ImageProtectionPolicy.Data) {
+  // MU_CHANGE END
+    for (Link = gRuntime->ImageHead.ForwardLink; Link != &gRuntime->ImageHead; Link = Link->ForwardLink) {
+      RuntimeImage = BASE_CR (Link, EFI_RUNTIME_IMAGE_ENTRY, Link);
+      SetUefiImageMemoryAttributes ((UINT64)(UINTN)RuntimeImage->ImageBase, ALIGN_VALUE(RuntimeImage->ImageSize, EFI_PAGE_SIZE), 0);
+    }
+  }
+}
+
 
 /**
   Returns whether we are currently executing in SMM mode.

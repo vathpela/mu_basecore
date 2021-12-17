@@ -520,9 +520,6 @@ InitMpGlobalData (
   // Make sure that the buffer memory is executable if NX protection is enabled
   // for EfiReservedMemoryType.
   //
-  // TODO: Check EFI_MEMORY_XP bit set or not once it's available in DXE GCD
-  //       service.
-  //
   Status = gDS->GetMemorySpaceDescriptor (Address, &MemDesc);
   if (!EFI_ERROR (Status)) {
     gDS->SetMemorySpaceAttributes (

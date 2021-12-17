@@ -305,17 +305,14 @@ DxeMain (
   Status = CoreInitializeEventServices ();
   ASSERT_EFI_ERROR (Status);
 
+  CoreInitializeMemoryProtection ();
+
   //
   // Call constructor for all libraries
   //
   ProcessLibraryConstructorList (gDxeCoreImageHandle, gDxeCoreST);
   PERF_CROSSMODULE_END   ("PEI");
   PERF_CROSSMODULE_BEGIN ("DXE");
-
-  ASSERT (gCpu != NULL);      // Set by CpuDxeLib constructor, and is required
-
-  // Enable Memory Protections here
-  StartMemoryProtections (gDxeCoreLoadedImage);
 
   //
   // Log MemoryBaseAddress and MemoryLength again (from
@@ -439,7 +436,6 @@ DxeMain (
   MemoryProfileInstallProtocol ();
 
   CoreInitializeMemoryAttributesTable ();
-  CoreInitializeMemoryProtection ();
 
   //
   // Get persisted vector hand-off info from GUIDeed HOB again due to HobStart may be updated,

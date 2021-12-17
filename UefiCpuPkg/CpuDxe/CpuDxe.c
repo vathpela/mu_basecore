@@ -1178,6 +1178,10 @@ CpuLibDxeConstructor (
   //
   InitInterruptDescriptorTable ();
 
+
+  // Set DxeMain gCpu before installing the protocol
+  gCpu = &mCpu;
+
   //
   // Install CPU Architectural Protocol
   //
@@ -1187,9 +1191,6 @@ CpuLibDxeConstructor (
                   NULL
                   );
   ASSERT_EFI_ERROR (Status);
-
-  // Set DxeMain gCpu 
-  gCpu = &mCpu;
 
   //
   // Refresh GCD memory space map according to MTRR value.
