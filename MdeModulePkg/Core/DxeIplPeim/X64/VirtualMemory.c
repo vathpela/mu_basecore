@@ -419,7 +419,7 @@ Split2MPageTo4K (
   //
   // Fill in 2M page entry.
   //
-  *PageEntry2M = (UINT64) (UINTN) PageTableEntry | AddressEncMask | IA32_PG_P | IA32_PG_RW;
+  *PageEntry2M = (UINT64) (UINTN) PageTableEntry | AddressEncMask | IA32_PG_P | IA32_PG_RW | IA32_PG_U;
 
   PhysicalAddress4K = PhysicalAddress;
   for (IndexOfPageTableEntries = 0; IndexOfPageTableEntries < 512; IndexOfPageTableEntries++, PageTableEntry++, PhysicalAddress4K += SIZE_4KB) {
@@ -441,6 +441,7 @@ Split2MPageTo4K (
       PageTableEntry->Uint64 |= AddressEncMask;
     }
     PageTableEntry->Bits.ReadWrite = 1;
+    PageTableEntry->Bits.UserSupervisor = 1;
     // MU_CHANGE START Always set not present and NX bits for stack
     if ((IsNullDetectionEnabled () && PhysicalAddress4K == 0) ||
     //     (PcdGetBool (PcdCpuStackGuard) && PhysicalAddress4K == StackBase)) {
@@ -501,7 +502,7 @@ Split1GPageTo2M (
   //
   // Fill in 1G page entry.
   //
-  *PageEntry1G = (UINT64) (UINTN) PageDirectoryEntry | AddressEncMask | IA32_PG_P | IA32_PG_RW;
+  *PageEntry1G = (UINT64) (UINTN) PageDirectoryEntry | AddressEncMask | IA32_PG_P | IA32_PG_RW | IA32_PG_U;
 
   PhysicalAddress2M = PhysicalAddress;
   for (IndexOfPageDirectoryEntries = 0; IndexOfPageDirectoryEntries < 512; IndexOfPageDirectoryEntries++, PageDirectoryEntry++, PhysicalAddress2M += SIZE_2MB) {
@@ -518,6 +519,7 @@ Split1GPageTo2M (
       PageDirectoryEntry->Bits.ReadWrite = 1;
       PageDirectoryEntry->Bits.Present = 1;
       PageDirectoryEntry->Bits.MustBe1 = 1;
+      PageDirectoryEntry->Bits.UserSupervisor = 1;
     }
   }
 }
@@ -630,7 +632,7 @@ SetPageTablePoolReadOnly (
             EntryIndex < EFI_PAGE_SIZE/sizeof (UINT64);
             ++EntryIndex) {
         NewPageTable[EntryIndex] = PhysicalAddress  | AddressEncMask |
-                                   IA32_PG_P | IA32_PG_RW;
+                                   IA32_PG_P | IA32_PG_RW | IA32_PG_U;
         if (Level > 2) {
           NewPageTable[EntryIndex] |= IA32_PG_PS;
         }
@@ -638,7 +640,7 @@ SetPageTablePoolReadOnly (
       }
 
       PageTable[Index] = (UINT64)(UINTN)NewPageTable | AddressEncMask |
-                                        IA32_PG_P | IA32_PG_RW;
+                                        IA32_PG_P | IA32_PG_RW | IA32_PG_U;
       PageTable = NewPageTable;
     }
   }
@@ -881,6 +883,7 @@ CreateIdentityMappingPageTables (
       PageMapLevel5Entry->Uint64 = (UINT64) (UINTN) PageMapLevel4Entry | AddressEncMask;
       PageMapLevel5Entry->Bits.ReadWrite = 1;
       PageMapLevel5Entry->Bits.Present   = 1;
+      PageMapLevel5Entry->Bits.UserSupervisor = 1;
       PageMapLevel5Entry++;
     }
 
@@ -900,6 +903,7 @@ CreateIdentityMappingPageTables (
       PageMapLevel4Entry->Uint64 = (UINT64)(UINTN)PageDirectoryPointerEntry | AddressEncMask;
       PageMapLevel4Entry->Bits.ReadWrite = 1;
       PageMapLevel4Entry->Bits.Present = 1;
+      PageMapLevel4Entry->Bits.UserSupervisor = 1;
 
       if (Page1GSupport) {
         PageDirectory1GEntry = (VOID *) PageDirectoryPointerEntry;
@@ -915,6 +919,7 @@ CreateIdentityMappingPageTables (
             PageDirectory1GEntry->Bits.ReadWrite = 1;
             PageDirectory1GEntry->Bits.Present = 1;
             PageDirectory1GEntry->Bits.MustBe1 = 1;
+            PageDirectory1GEntry->Bits.UserSupervisor = 1;
           }
         }
       } else {
@@ -934,6 +939,7 @@ CreateIdentityMappingPageTables (
           PageDirectoryPointerEntry->Uint64 = (UINT64)(UINTN)PageDirectoryEntry | AddressEncMask;
           PageDirectoryPointerEntry->Bits.ReadWrite = 1;
           PageDirectoryPointerEntry->Bits.Present = 1;
+          PageDirectoryPointerEntry->Bits.UserSupervisor = 1;
 
           for (IndexOfPageDirectoryEntries = 0; IndexOfPageDirectoryEntries < 512; IndexOfPageDirectoryEntries++, PageDirectoryEntry++, PageAddress += SIZE_2MB) {
             if (ToSplitPageTable (PageAddress, SIZE_2MB, StackBase, StackSize, GhcbBase, GhcbSize)) {
@@ -949,6 +955,7 @@ CreateIdentityMappingPageTables (
               PageDirectoryEntry->Bits.ReadWrite = 1;
               PageDirectoryEntry->Bits.Present = 1;
               PageDirectoryEntry->Bits.MustBe1 = 1;
+              PageDirectoryEntry->Bits.UserSupervisor = 1;
             }
           }
         }

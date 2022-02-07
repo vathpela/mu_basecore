@@ -376,6 +376,10 @@ GetAttributesFromPageEntry (
   if ((*PageEntry & IA32_PG_NX) != 0) {
     Attributes |= EFI_MEMORY_XP;
   }
+  if ((*PageEntry & IA32_PG_U) == 0) {
+    // UINT64  UserSupervisor:1;         // 0 = Supervisor, 1=User
+    Attributes |= EFI_MEMORY_SP;
+  }
   return Attributes;
 }
 
@@ -437,6 +441,26 @@ ConvertPageEntryAttribute (
     switch (PageAction) {
     case PageActionAssign:
       NewPageEntry |= IA32_PG_RW;
+      break;
+    case PageActionSet:
+    case PageActionClear:
+      break;
+    }
+  }
+  if ((Attributes & EFI_MEMORY_SP) != 0) {
+    switch (PageAction) {
+    case PageActionAssign:
+    case PageActionSet:
+      NewPageEntry &= ~(UINT64)IA32_PG_U;
+      break;
+    case PageActionClear:
+      NewPageEntry |= IA32_PG_U;
+      break;
+    }
+  } else {
+    switch (PageAction) {
+    case PageActionAssign:
+      NewPageEntry |= IA32_PG_U;
       break;
     case PageActionSet:
     case PageActionClear:
@@ -652,6 +676,97 @@ EnableReadOnlyPageWriteProtect (
     Cr0.Bits.WP = 1;
     AsmWriteCr0 (Cr0.UintN);
   }
+}
+
+/**
+  This function retrieves the attributes of the memory region specified by
+  BaseAddress and Length. If different attributes are got from different part
+  of the memory region, EFI_NO_MAPPING will be returned.
+
+  @param  BaseAddress       The physical address that is the start address of
+                            a memory region.
+  @param  Length            The size in bytes of the memory region.
+  @param  Attributes        Pointer to attributes returned.
+
+  @retval EFI_SUCCESS           The attributes got for the memory region.
+  @retval EFI_INVALID_PARAMETER Length is zero.
+                                Attributes is NULL.
+                                Length is larger than MAX_INT64. // MU_CHANGE: Avoid Length overflow for INT64
+  @retval EFI_NO_MAPPING        Attributes are not consistent cross the memory
+                                region.
+  @retval EFI_UNSUPPORTED       The processor does not support one or more
+                                bytes of the memory resource range specified
+                                by BaseAddress and Length.
+
+**/
+EFI_STATUS
+EFIAPI
+CpuGetMemoryAttributes (
+  IN  EFI_PHYSICAL_ADDRESS                  BaseAddress,
+  IN  UINT64                                Length,
+  OUT UINT64                                *Attributes
+  )
+{
+  EFI_PHYSICAL_ADDRESS  Address;
+  UINT64                *PageEntry;
+  UINT64                MemAttr;
+  PAGE_ATTRIBUTE        PageAttr;
+  INT64                 Size;
+  PAGE_TABLE_LIB_PAGING_CONTEXT       PagingContext;
+
+  if (Length < SIZE_4KB || Attributes == NULL) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  GetCurrentPagingContext (&PagingContext);
+
+  Size = (INT64)Length;
+  MemAttr = (UINT64)-1;
+
+  do {
+
+    PageEntry = GetPageTableEntry (&PagingContext, BaseAddress, &PageAttr);
+    if (PageEntry == NULL || PageAttr == PageNone) {
+      return EFI_UNSUPPORTED;
+    }
+
+    //
+    // If the memory range is cross page table boundary, make sure they
+    // share the same attribute. Return EFI_NO_MAPPING if not.
+    //
+    *Attributes = GetAttributesFromPageEntry (PageEntry);
+    if (MemAttr != (UINT64)-1 && *Attributes != MemAttr) {
+      return EFI_NO_MAPPING;
+    }
+
+    switch (PageAttr) {
+    case Page4K:
+      Address     = *PageEntry & PAGING_4K_ADDRESS_MASK_64;
+      Size        -= (SIZE_4KB - (BaseAddress - Address));
+      BaseAddress += (SIZE_4KB - (BaseAddress - Address));
+      break;
+
+    case Page2M:
+      Address     = *PageEntry & PAGING_2M_ADDRESS_MASK_64;
+      Size        -= SIZE_2MB - (BaseAddress - Address);
+      BaseAddress += SIZE_2MB - (BaseAddress - Address);
+      break;
+
+    case Page1G:
+      Address     = *PageEntry & PAGING_1G_ADDRESS_MASK_64;
+      Size        -= SIZE_1GB - (BaseAddress - Address);
+      BaseAddress += SIZE_1GB - (BaseAddress - Address);
+      break;
+
+    default:
+      return EFI_UNSUPPORTED;
+    }
+
+    MemAttr = *Attributes;
+
+  } while (Size > 0);
+
+  return EFI_SUCCESS;
 }
 
 /**

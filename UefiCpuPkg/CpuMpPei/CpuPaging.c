@@ -463,7 +463,7 @@ CreatePageTable (
       //
       // PDPTE[2:1] (PAE Paging) must be 0. SplitPage() might change them to 1.
       //
-      *PageEntry &= ~(UINT64)(IA32_PG_RW | IA32_PG_U);
+      *PageEntry &= ~(UINT64)(IA32_PG_RW);
     }
 
     PageEntry += 1;
