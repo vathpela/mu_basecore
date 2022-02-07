@@ -192,13 +192,13 @@ try:
                             track_nf.append ((lineno, Line))
                             logging.warn("At Line %d: %s" %(lineno, Line))
                         elif m_result == self.OverrideResult.OR_FILE_CHANGE:
-                            track_fc.append (modulenode[-1].path)
+                            track_fc.append(modulenode.reflist[-1].path)
                             logging.warn("At Line %d: %s" %(lineno, Line))
                         elif m_result != self.OverrideResult.OR_ALL_GOOD:
                             result = m_result
                             logging.error("At Line %d: %s" %(lineno, Line))
                         else:
-                            track_ag.append (modulenode[-1].path)
+                            track_ag.append(modulenode.reflist[-1].path)
 
             if trackno != 0 and len(track_nf) == trackno:
                 # All track tags in this file are not found, this will enforce a failure, if not already failed
