@@ -147,6 +147,8 @@ try:
             lineno = 0
             trackno = 0
             track_nf = []
+            track_fc = []
+            track_ag = []
 
             list_path = os.path.normpath(filepath).lower()
 
@@ -189,14 +191,29 @@ try:
                         if m_result == self.OverrideResult.OR_TARGET_INF_NOT_FOUND:
                             track_nf.append ((lineno, Line))
                             logging.warn("At Line %d: %s" %(lineno, Line))
+                        elif m_result == self.OverrideResult.OR_FILE_CHANGE:
+                            track_fc.append (modulenode[-1].path)
+                            logging.warn("At Line %d: %s" %(lineno, Line))
                         elif m_result != self.OverrideResult.OR_ALL_GOOD:
                             result = m_result
                             logging.error("At Line %d: %s" %(lineno, Line))
+                        else:
+                            track_ag.append (modulenode[-1].path)
 
             if trackno != 0 and len(track_nf) == trackno:
                 # All track tags in this file are not found, this will enforce a failure, if not already failed
                 if result == self.OverrideResult.OR_ALL_GOOD:
                     result = self.OverrideResult.OR_TARGET_INF_NOT_FOUND
+
+            if len(track_fc) != 0:
+                canceled_cnt = 0
+                # Some track tags failed, see if they can be canceled out by other passed track tags
+                for changed_line in track_fc:
+                    for all_good_line in track_ag:
+                        if changed_line == all_good_line:
+                            canceled_cnt = canceled_cnt + 1
+                if canceled_cnt != len(track_fc) and result == self.OverrideResult.OR_ALL_GOOD:
+                    result = self.OverrideResult.OR_FILE_CHANGE
 
             # Revert this visitied indicator after this branch is done searching
             filelist.remove(list_path)
