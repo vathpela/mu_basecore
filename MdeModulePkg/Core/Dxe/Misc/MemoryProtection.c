@@ -41,6 +41,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #include <Protocol/HeapGuardDebug.h> // MS_CHANGE
 
 #include "DxeMain.h"
+#include "PrivilegeMgmt/PrivilegeMgmt.h"
 #include "Mem/HeapGuard.h"
 
 //
@@ -251,7 +252,8 @@ SetUefiImageMemoryAttributes (
 **/
 VOID
 SetUefiImageProtectionAttributes (
-  IN IMAGE_PROPERTIES_RECORD     *ImageRecord
+  IN IMAGE_PROPERTIES_RECORD     *ImageRecord,
+  IN BOOLEAN                     PrivilegedImage
   )
 {
   IMAGE_PROPERTIES_RECORD_CODE_SECTION      *ImageRecordCodeSection;
@@ -260,6 +262,13 @@ SetUefiImageProtectionAttributes (
   LIST_ENTRY                                *ImageRecordCodeSectionList;
   UINT64                                    CurrentBase;
   UINT64                                    ImageEnd;
+  UINT64                                    SupervisorAttr;
+
+  if (PrivilegedImage) {
+    SupervisorAttr = EFI_MEMORY_SP;
+  } else {
+    SupervisorAttr = 0;
+  }
 
   ImageRecordCodeSectionList = &ImageRecord->CodeSegmentList;
 
@@ -285,7 +294,7 @@ SetUefiImageProtectionAttributes (
       SetUefiImageMemoryAttributes (
         CurrentBase,
         ImageRecordCodeSection->CodeSegmentBase - CurrentBase,
-        EFI_MEMORY_XP
+        EFI_MEMORY_XP | SupervisorAttr
         );
     }
     //
@@ -294,7 +303,7 @@ SetUefiImageProtectionAttributes (
     SetUefiImageMemoryAttributes (
       ImageRecordCodeSection->CodeSegmentBase,
       ImageRecordCodeSection->CodeSegmentSize,
-      EFI_MEMORY_RO
+      EFI_MEMORY_RO | SupervisorAttr
       );
     CurrentBase = ImageRecordCodeSection->CodeSegmentBase + ImageRecordCodeSection->CodeSegmentSize;
   }
@@ -309,7 +318,7 @@ SetUefiImageProtectionAttributes (
     SetUefiImageMemoryAttributes (
       CurrentBase,
       ImageEnd - CurrentBase,
-      EFI_MEMORY_XP
+      EFI_MEMORY_XP | SupervisorAttr
       );
   }
   return ;
@@ -615,7 +624,7 @@ ProtectUefiImageMu (
   //
   // CPU ARCH present. Update memory attribute directly.
   //
-  SetUefiImageProtectionAttributes (ImageRecord);
+  SetUefiImageProtectionAttributes (ImageRecord, FALSE);
 
   //
   // Record the image record in the list so we can undo the protections later
@@ -1331,6 +1340,10 @@ MemoryProtectionCpuArchProtocolNotify (
   CoreCloseEvent (Event);
 
   ASSERT (gCpu != NULL);      // Set by CpuDxeLib constructor, and is required
+
+  // The GDT and IDT has been updated by CpuDxe, and it's our turn...
+  CallgateInit (mNumberOfCpus);
+  SyscallInterfaceInit (mNumberOfCpus);
 
   // MU_CHANGE START Update to use memory protection settings HOB
   // if (PcdGet64 (PcdDxeNxMemoryProtectionPolicy) != 0) {

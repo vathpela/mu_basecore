@@ -69,9 +69,21 @@
   DxeMain/DxeProtocolNotify.c
   DxeMain/DxeMain.c
 
+  # MU_CHANGE Starts: DXE_SUPV
+  PrivilegeMgmt/AsmCallGateTransfer.nasm
+  PrivilegeMgmt/CallGateTransfer.c
+  PrivilegeMgmt/PrivilegeMgmt.h
+  PrivilegeMgmt/SyscallDispatcher.c
+  PrivilegeMgmt/SysCallEntry.nasm
+  PrivilegeMgmt/SyscallSetup.c
+  # MU_CHANGE Ends: DXE_SUPV
+
 [Packages]
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
+  StandaloneMmPkg/StandaloneMmPkg.dec
+  UefiCpuPkg/UefiCpuPkg.dec
+  MmSupervisorPkg/MmSupervisorPkg.dec
 
 [LibraryClasses]
   BaseMemoryLib
@@ -99,6 +111,8 @@
   PcdDxeLib
   BaseBinSecurityLib         ## MS_CHANGE_?
   MemoryProtectionHobLib        ## MU_CHANGE
+  DxePolicyGateLib              ## MU_CHANGE
+  CpuLib                        ## MU_CHNAGE
 
 [Guids]
   gEfiEventMemoryMapChangeGuid                  ## PRODUCES             ## Event
@@ -128,6 +142,7 @@
   gEfiEndOfDxeEventGroupGuid                    ## SOMETIMES_CONSUMES   ## Event
   gEfiHobMemoryAllocStackGuid                   ## SOMETIMES_CONSUMES   ## SystemTable
   gMuEventPreExitBootServicesGuid               ## PRODUCES             ## Event    // MU_CHANGE
+  gMpInformationHobGuid                         ## CONSUMES
 
 [Ppis]
   gEfiVectorHandoffInfoPpiGuid                  ## UNDEFINED # HOB
@@ -196,6 +211,9 @@
   # gEfiMdeModulePkgTokenSpaceGuid.PcdCpuStackGuard                           ## CONSUMES
   # MU_CHANGE END
   gEfiMdeModulePkgTokenSpaceGuid.PcdFwVolDxeMaxEncapsulationDepth           ## CONSUMES
+  # MU_CHANGE: DXE_SUPV
+  gUefiCpuPkgTokenSpaceGuid.PcdCpuDxeStackGuard                             ## CONSUMES
+  gUefiCpuPkgTokenSpaceGuid.PcdCpuDxeStackSize                              ## CONSUMES
 
 # [Hob]
 # RESOURCE_DESCRIPTOR   ## CONSUMES

@@ -7,6 +7,11 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 #include "DxeMain.h"
+#include <Guid/MpInformation.h>
+#include <Library/BaseLib.h>
+#include <Library/HobLib.h>
+#include <Register/Cpuid.h>
+#include "PrivilegeMgmt/PrivilegeMgmt.h"
 
 //
 // DXE Core Global Variables for Protocols from PEI
@@ -203,6 +208,7 @@ EFI_RUNTIME_SERVICES  *gDxeCoreRT = &mEfiRuntimeServicesTableTemplate;
 EFI_HANDLE            gDxeCoreImageHandle = NULL;
 
 BOOLEAN               gMemoryMapTerminated = FALSE;
+UINTN                 mNumberOfCpus = 1;
 
 //
 // EFI Decompress Protocol
@@ -211,6 +217,9 @@ EFI_DECOMPRESS_PROTOCOL  gEfiDecompress = {
   DxeMainUefiDecompressGetInfo,
   DxeMainUefiDecompress
 };
+
+VOID  *mDxeCpl3StackArrayBase = NULL;
+UINTN mDxeStackSize = 0;
 
 //
 // For Loading modules at fixed address feature, the configuration table is to cache the top address below which to load
@@ -244,6 +253,7 @@ DxeMain (
   EFI_VECTOR_HANDOFF_INFO       *VectorInfoList;
   EFI_VECTOR_HANDOFF_INFO       *VectorInfo;
   VOID                          *EntryPoint;
+  VOID                          *Cpl3Stacks;
 
   //
   // Setup the default exception handlers
@@ -321,6 +331,50 @@ DxeMain (
   //
   DEBUG ((DEBUG_INFO, "%a: MemoryBaseAddress=0x%Lx MemoryLength=0x%Lx\n",
     __FUNCTION__, MemoryBaseAddress, MemoryLength));
+
+  //
+  // Extract the MP information from the Hoblist
+  //
+  GuidHob = GetFirstGuidHob (&gMpInformationHobGuid);
+  ASSERT (GuidHob != NULL);
+
+  MP_INFORMATION_HOB_DATA *MpInformationHobData = GET_GUID_HOB_DATA(GuidHob);
+  mNumberOfCpus = MpInformationHobData->NumberOfProcessors;
+
+  //
+  // Allocate SMI stacks for all processors.
+  //
+  mDxeStackSize = EFI_PAGES_TO_SIZE (EFI_SIZE_TO_PAGES (PcdGet32 (PcdCpuDxeStackSize)));
+  if (FeaturePcdGet (PcdCpuDxeStackGuard)) {
+    //
+    // 2 more pages is allocated for each processor.
+    // one is guard page and the other is known good stack.
+    //
+    // +-------------------------------------------+-----+-------------------------------------------+
+    // | Known Good Stack | Guard Page | DXE Stack | ... | Known Good Stack | Guard Page | DXE Stack |
+    // +-------------------------------------------+-----+-------------------------------------------+
+    // |                                           |     |                                           |
+    // |<-------------- Processor 0 -------------->|     |<-------------- Processor n -------------->|
+    //
+    mDxeStackSize += EFI_PAGES_TO_SIZE (2);
+  }
+
+  // Allocate per-cpu stack for ring3
+  Status = CoreAllocatePages (
+            AllocateAnyPages,
+            EfiBootServicesData,
+            mNumberOfCpus * (EFI_SIZE_TO_PAGES (mDxeStackSize)),
+            (EFI_PHYSICAL_ADDRESS*) &Cpl3Stacks);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "%a Failed to allocate user mode stacks - %r!!!\n", __FUNCTION__, Status));
+    ASSERT_EFI_ERROR (Status);
+  }
+
+  DEBUG ((DEBUG_INFO, "Stacks                   - 0x%x\n", Cpl3Stacks));
+  DEBUG ((DEBUG_INFO, "mDxeStackSize            - 0x%x\n", mDxeStackSize));
+  DEBUG ((DEBUG_INFO, "PcdCpuSmmStackGuard      - 0x%x\n", FeaturePcdGet (PcdCpuDxeStackGuard)));
+
+  mDxeCpl3StackArrayBase = Cpl3Stacks;
 
   //
   // Report DXE Core image information to the PE/COFF Extra Action Library

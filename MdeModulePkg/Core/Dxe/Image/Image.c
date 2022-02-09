@@ -10,6 +10,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 #include "DxeMain.h"
 #include "Image.h"
+#include "PrivilegeMgmt/PrivilegeMgmt.h"
 
 //
 // Module Globals
@@ -1676,7 +1677,16 @@ CoreStartImage (
     // Call the image's entry point
     //
     Image->Started = TRUE;
-    Image->Status = Image->EntryPoint (ImageHandle, Image->Info.SystemTable);
+    // MU_CHANGE Starts: DXE_SUPV
+    if (gCpu == NULL) {
+      Image->Status = Image->EntryPoint (ImageHandle, Image->Info.SystemTable);
+    } else {
+      Image->Status = InvokeDemotedDriverEntryPoint (
+                        Image->EntryPoint,
+                        ImageHandle,
+                        Image->Info.SystemTable);
+    }
+    // MU_CHANGE Ends: DXE_SUPV
 
     //
     // If the image returns, exit it through Exit()

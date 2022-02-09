@@ -132,6 +132,7 @@
   #   FALSE - SMM Stack Guard will be disabled.<BR>
   # @Prompt Enable SMM Stack Guard.
   gUefiCpuPkgTokenSpaceGuid.PcdCpuSmmStackGuard|TRUE|BOOLEAN|0x1000001C
+  gUefiCpuPkgTokenSpaceGuid.PcdCpuDxeStackGuard|TRUE|BOOLEAN|0x1000001D
 
   ## Indicates if BSP election in SMM will be enabled.
   #  If enabled, a BSP will be dynamically elected among all processors in each SMI.
@@ -221,6 +222,7 @@
   ## Specifies stack size in bytes for each processor in SMM.
   # @Prompt Processor stack size in SMM.
   gUefiCpuPkgTokenSpaceGuid.PcdCpuSmmStackSize|0x2000|UINT32|0x32132105
+  gUefiCpuPkgTokenSpaceGuid.PcdCpuDxeStackSize|0x2000|UINT32|0x3213210D
 
   ## Specifies shadow stack size in bytes for each processor in SMM.
   # @Prompt Processor shadow stack size in SMM.
