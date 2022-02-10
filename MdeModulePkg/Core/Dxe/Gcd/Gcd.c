@@ -2563,7 +2563,7 @@ CoreInitializeGcdServices (
                    GcdMemoryType,
                    ResourceHob->PhysicalStart,
                    ResourceHob->ResourceLength,
-                   Capabilities
+                   Capabilities | EFI_MEMORY_SP
                    );
       }
 

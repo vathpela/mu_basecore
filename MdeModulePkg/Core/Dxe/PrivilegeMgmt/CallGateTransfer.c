@@ -203,10 +203,6 @@ SetupTssDescriptor (
 
   AsmWriteGdtr (&Gdtr);
 
-  // TODO: Remove this junk
-  AsmReadGdtr (&Gdtr);
-  DUMP_HEX (DEBUG_INFO, 0, Gdtr.Base, Gdtr.Limit + 1, "");
-
   // Note: a same level far return to apply new GDT
   Status = EFI_SUCCESS;
 Exit:

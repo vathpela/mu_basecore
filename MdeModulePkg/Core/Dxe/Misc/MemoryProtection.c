@@ -624,7 +624,7 @@ ProtectUefiImageMu (
   //
   // CPU ARCH present. Update memory attribute directly.
   //
-  SetUefiImageProtectionAttributes (ImageRecord, FALSE);
+  SetUefiImageProtectionAttributes (ImageRecord, (LoadedImage == gDxeCoreLoadedImage)? TRUE : FALSE);
 
   //
   // Record the image record in the list so we can undo the protections later
@@ -1368,6 +1368,9 @@ MemoryProtectionCpuArchProtocolNotify (
         );
     }
   }
+
+  // From this point and on, we can turn on SMEP (bit20) of CR4
+  AsmWriteCr4 (AsmReadCr4 () | BIT20);
 
   if (gMPS.NullPointerDetectionPolicy.Fields.UefiNullDetection) {
     EnableNullDetection ();
