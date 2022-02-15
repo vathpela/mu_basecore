@@ -106,6 +106,7 @@ EFI_SMM_BASE2_PROTOCOL            *mSmmBase2 = NULL;
 UINTN                     *mPFEntryCount;
 UINT64                    *(*mLastPFEntryPointer)[MAX_PF_ENTRY_COUNT];
 
+UINT8 show_debug = 0;
 
 /**
  Check if current execution environment is in SMM mode or not, via
@@ -412,6 +413,10 @@ ConvertPageEntryAttribute (
   UINT64  NewPageEntry;
   UINT32  *PageAttributes;
 
+  if (show_debug)
+    DEBUG ((DEBUG_INFO, "%d ConvertMemoryPageAttributes(&Ctx, &0x%lx, 0x%lx, 0x%lx, %d)\n",
+            __LINE__, *PageEntry, Attributes, PageAction, *IsModified));
+
   CurrentPageEntry = *PageEntry;
   NewPageEntry = CurrentPageEntry;
   if ((Attributes & EFI_MEMORY_RP) != 0) {
@@ -419,15 +424,21 @@ ConvertPageEntryAttribute (
     case PageActionAssign:
     case PageActionSet:
       NewPageEntry &= ~(UINT64)IA32_PG_P;
+      if (show_debug)
+        DEBUG ((DEBUG_INFO, "%d CurrentPageEntry:0x%lx NewPageEntry:0x%lx\n", __LINE__, CurrentPageEntry, NewPageEntry));
       break;
     case PageActionClear:
       NewPageEntry |= IA32_PG_P;
+      if (show_debug)
+        DEBUG ((DEBUG_INFO, "%d CurrentPageEntry:0x%lx NewPageEntry:0x%lx\n", __LINE__, CurrentPageEntry, NewPageEntry));
       break;
     }
   } else {
     switch (PageAction) {
     case PageActionAssign:
       NewPageEntry |= IA32_PG_P;
+      if (show_debug)
+        DEBUG ((DEBUG_INFO, "%d CurrentPageEntry:0x%lx NewPageEntry:0x%lx\n", __LINE__, CurrentPageEntry, NewPageEntry));
       break;
     case PageActionSet:
     case PageActionClear:
@@ -439,15 +450,21 @@ ConvertPageEntryAttribute (
     case PageActionAssign:
     case PageActionSet:
       NewPageEntry &= ~(UINT64)IA32_PG_RW;
+      if (show_debug)
+        DEBUG ((DEBUG_INFO, "%d CurrentPageEntry:0x%lx NewPageEntry:0x%lx\n", __LINE__, CurrentPageEntry, NewPageEntry));
       break;
     case PageActionClear:
       NewPageEntry |= IA32_PG_RW;
+      if (show_debug)
+        DEBUG ((DEBUG_INFO, "%d CurrentPageEntry:0x%lx NewPageEntry:0x%lx\n", __LINE__, CurrentPageEntry, NewPageEntry));
       break;
     }
   } else {
     switch (PageAction) {
     case PageActionAssign:
       NewPageEntry |= IA32_PG_RW;
+      if (show_debug)
+        DEBUG ((DEBUG_INFO, "%d CurrentPageEntry:0x%lx NewPageEntry:0x%lx\n", __LINE__, CurrentPageEntry, NewPageEntry));
       break;
     case PageActionSet:
     case PageActionClear:
@@ -463,15 +480,21 @@ ConvertPageEntryAttribute (
       case PageActionAssign:
       case PageActionSet:
         NewPageEntry |= IA32_PG_NX;
+        if (show_debug)
+          DEBUG ((DEBUG_INFO, "%d CurrentPageEntry:0x%lx NewPageEntry:0x%lx\n", __LINE__, CurrentPageEntry, NewPageEntry));
         break;
       case PageActionClear:
         NewPageEntry &= ~IA32_PG_NX;
+        if (show_debug)
+          DEBUG ((DEBUG_INFO, "%d CurrentPageEntry:0x%lx NewPageEntry:0x%lx\n", __LINE__, CurrentPageEntry, NewPageEntry));
         break;
       }
     } else {
       switch (PageAction) {
       case PageActionAssign:
         NewPageEntry &= ~IA32_PG_NX;
+        if (show_debug)
+          DEBUG ((DEBUG_INFO, "%d CurrentPageEntry:0x%lx NewPageEntry:0x%lx\n", __LINE__, CurrentPageEntry, NewPageEntry));
         break;
       case PageActionSet:
       case PageActionClear:
@@ -482,11 +505,15 @@ ConvertPageEntryAttribute (
   *PageEntry = NewPageEntry;
   if (CurrentPageEntry != NewPageEntry) {
     *IsModified = TRUE;
-    DEBUG ((DEBUG_VERBOSE, "ConvertPageEntryAttribute 0x%lx", CurrentPageEntry));
-    DEBUG ((DEBUG_VERBOSE, "->0x%lx\n", NewPageEntry));
   } else {
     *IsModified = FALSE;
   }
+  if (show_debug)
+    DEBUG ((DEBUG_INFO, "%d ConvertPageEntryAttribute 0x%lx->0x%lx *IsModified:%d\n",
+            __LINE__,
+            CurrentPageEntry & EFI_MEMORY_ATTRIBUTE_MASK,
+            NewPageEntry & EFI_MEMORY_ATTRIBUTE_MASK,
+            *IsModified));
 }
 
 /**
@@ -562,7 +589,9 @@ SplitPage (
     ASSERT (SplitAttribute == Page4K);
     if (SplitAttribute == Page4K) {
       NewPageEntry = AllocatePagesFunc (1);
-      DEBUG ((DEBUG_VERBOSE, "Split - 0x%x\n", NewPageEntry));
+
+      if (show_debug)
+        DEBUG ((DEBUG_INFO, "%d Split - 0x%x\n", __LINE__, NewPageEntry));
       if (NewPageEntry == NULL) {
         return RETURN_OUT_OF_RESOURCES;
       }
@@ -583,7 +612,8 @@ SplitPage (
     ASSERT (SplitAttribute == Page2M || SplitAttribute == Page4K);
     if ((SplitAttribute == Page2M || SplitAttribute == Page4K)) {
       NewPageEntry = AllocatePagesFunc (1);
-      DEBUG ((DEBUG_VERBOSE, "Split - 0x%x\n", NewPageEntry));
+      if (show_debug)
+        DEBUG ((DEBUG_INFO, "%d Split - 0x%x\n", __LINE__, NewPageEntry));
       if (NewPageEntry == NULL) {
         return RETURN_OUT_OF_RESOURCES;
       }
@@ -820,6 +850,22 @@ ConvertMemoryPageAttributes (
         Status = RETURN_UNSUPPORTED;
         goto Done;
       }
+      PageEntry = GetPageTableEntry (&CurrentPagingContext, BaseAddress, &PageAttribute);
+      if (PageEntry == NULL) {
+        Status = RETURN_UNSUPPORTED;
+	DEBUG ((DEBUG_INFO, "%d ConvertMemoryPageAttributes found no PageEntry!\n", __LINE__));
+        goto Done;
+      }
+      if ((!!(Attributes & EFI_MEMORY_XP) != !!(*PageEntry & IA32_PG_NX)) ||
+	  (!!(Attributes & EFI_MEMORY_RP) != !!(*PageEntry & IA32_PG_P)) ||
+	  (!!(Attributes & EFI_MEMORY_RO) != !(*PageEntry & IA32_PG_RW))) {
+        ConvertPageEntryAttribute (&CurrentPagingContext, PageEntry, Attributes, PageAction, &IsEntryModified);
+        if (IsEntryModified) {
+          if (IsModified != NULL) {
+            *IsModified = TRUE;
+	  }
+        }
+      }
       if (IsSplitted != NULL) {
         *IsSplitted = TRUE;
       }
@@ -887,6 +933,8 @@ AssignMemoryPageAttributes (
 
 //  DEBUG((DEBUG_INFO, "AssignMemoryPageAttributes: 0x%lx - 0x%lx (0x%lx)\n", BaseAddress, Length, Attributes));
   Status = ConvertMemoryPageAttributes (PagingContext, BaseAddress, Length, Attributes, PageActionAssign, AllocatePagesFunc, &IsSplitted, &IsModified);
+  if (show_debug)
+    DEBUG((DEBUG_INFO, "%d ConvertMemoryPageAttributes returned %lx\n", __LINE__, Status));
   if (!EFI_ERROR(Status)) {
     if ((PagingContext == NULL) && IsModified) {
       //
@@ -1438,6 +1486,8 @@ EfiSetMemoryAttributes (
     return EFI_INVALID_PARAMETER;
   }
 
+  show_debug = 1;
+  DEBUG((DEBUG_INFO, "%d EfiSetMemoryAttributes: 0x%lx - 0x%lx (0x%lx)\n", __LINE__, BaseAddress, Length, Attributes));
   Status = ConvertMemoryPageAttributes (NULL, BaseAddress, Length, Attributes, PageActionSet, NULL, &IsSplitted, &IsModified);
   if (!EFI_ERROR (Status)) {
     if (IsModified) {
@@ -1455,6 +1505,8 @@ EfiSetMemoryAttributes (
   {
     DEBUG((DEBUG_ERROR, "%a: Failed in ConvertMemoryPageAttributes (%r)\n", __FUNCTION__, Status));
   }
+
+  show_debug = 0;
   return Status;
 }
 
@@ -1505,6 +1557,8 @@ EfiClearMemoryAttributes (
     return EFI_INVALID_PARAMETER;
   }
 
+  show_debug = 1;
+  DEBUG((DEBUG_INFO, "%d EfiClearMemoryAttributes: 0x%lx - 0x%lx (0x%lx)\n", __LINE__, BaseAddress, Length, Attributes));
   Status = ConvertMemoryPageAttributes (NULL, BaseAddress, Length, Attributes, PageActionClear, NULL, &IsSplitted, &IsModified);
   if (!EFI_ERROR (Status)) {
     if (IsModified) {
@@ -1523,6 +1577,7 @@ EfiClearMemoryAttributes (
     DEBUG((DEBUG_ERROR, "%a: Failed in ConvertMemoryPageAttributes (%r)\n", __FUNCTION__, Status));
   }
 
+  show_debug = 0;
   return Status;
 }
 
@@ -1583,6 +1638,7 @@ EfiGetMemoryAttributes (
     return EFI_INVALID_PARAMETER;
   }
 
+  show_debug = 1;
   Size    = (INT64)Length;
   MemAttr = (UINT64)-1;
 
@@ -1595,6 +1651,7 @@ EfiGetMemoryAttributes (
   do {
     PageEntry = GetPageTableEntry (&CurrentPagingContext, BaseAddress, &PageAttr);
     if ((PageEntry == NULL) || (PageAttr == PageNone)) {
+      show_debug = 0;
       return EFI_UNSUPPORTED;
     }
 
@@ -1604,6 +1661,7 @@ EfiGetMemoryAttributes (
     //
     *Attributes = GetAttributesFromPageEntry (PageEntry);
     if ((MemAttr != (UINT64)-1) && (*Attributes != MemAttr)) {
+      show_debug = 0;
       return EFI_NO_MAPPING;
     }
 
@@ -1627,6 +1685,7 @@ EfiGetMemoryAttributes (
         break;
 
       default:
+        show_debug = 0;
         return EFI_UNSUPPORTED;
     }
 
@@ -1635,6 +1694,7 @@ EfiGetMemoryAttributes (
 
   DEBUG ((DEBUG_INFO, "%a: Attributes is 0x%lx\n", __FUNCTION__, *Attributes));
 
+  show_debug = 0;
   return EFI_SUCCESS;
 }
 
@@ -1653,6 +1713,31 @@ InstallEfiMemoryAttributeProtocol (
   )
 {
   EFI_STATUS               Status;
+
+  DEBUG ((DEBUG_INFO, "  IsInSmm:0x%Lx\n", IsInSmm));
+  DEBUG ((DEBUG_INFO, "  GetCurrentPagingContext:0x%Lx\n", GetCurrentPagingContext));
+  DEBUG ((DEBUG_INFO, "  PageAttributeToLength:0x%Lx\n", PageAttributeToLength));
+  DEBUG ((DEBUG_INFO, "  PageAttributeToMask:0x%Lx\n", PageAttributeToMask));
+  DEBUG ((DEBUG_INFO, "  GetPageTableEntry:0x%Lx\n", GetPageTableEntry));
+  DEBUG ((DEBUG_INFO, "  GetAttributesFromPageEntry:0x%Lx\n", GetAttributesFromPageEntry));
+  DEBUG ((DEBUG_INFO, "  ConvertPageEntryAttribute:0x%Lx\n", ConvertPageEntryAttribute));
+  DEBUG ((DEBUG_INFO, "  NeedSplitPage:0x%Lx\n", NeedSplitPage));
+  DEBUG ((DEBUG_INFO, "  SplitPage:0x%Lx\n", SplitPage));
+  DEBUG ((DEBUG_INFO, "  IsReadOnlyPageWriteProtected:0x%Lx\n", IsReadOnlyPageWriteProtected));
+  DEBUG ((DEBUG_INFO, "  DisableReadOnlyPageWriteProtect:0x%Lx\n", DisableReadOnlyPageWriteProtect));
+  DEBUG ((DEBUG_INFO, "  EnableReadOnlyPageWriteProtect:0x%Lx\n", EnableReadOnlyPageWriteProtect));
+  DEBUG ((DEBUG_INFO, "  ConvertMemoryPageAttributes:0x%Lx\n", ConvertMemoryPageAttributes));
+  DEBUG ((DEBUG_INFO, "  AssignMemoryPageAttributes:0x%Lx\n", AssignMemoryPageAttributes));
+  DEBUG ((DEBUG_INFO, "  IsExecuteDisableEnabled:0x%Lx\n", IsExecuteDisableEnabled));
+  DEBUG ((DEBUG_INFO, "  RefreshGcdMemoryAttributesFromPaging:0x%Lx\n", RefreshGcdMemoryAttributesFromPaging));
+  DEBUG ((DEBUG_INFO, "  InitializePageTablePool:0x%Lx\n", InitializePageTablePool));
+  DEBUG ((DEBUG_INFO, "  AllocatePageTableMemory:0x%Lx\n", AllocatePageTableMemory));
+  DEBUG ((DEBUG_INFO, "  DebugExceptionHandler:0x%Lx\n", DebugExceptionHandler));
+  DEBUG ((DEBUG_INFO, "  PageFaultExceptionHandler:0x%Lx\n", PageFaultExceptionHandler));
+  DEBUG ((DEBUG_INFO, "  InitializePageTableLib:0x%Lx\n", InitializePageTableLib));
+  DEBUG ((DEBUG_INFO, "  EfiSetMemoryAttributes:0x%Lx\n", EfiSetMemoryAttributes));
+  DEBUG ((DEBUG_INFO, "  EfiGetMemoryAttributes:0x%Lx\n", EfiGetMemoryAttributes));
+  DEBUG ((DEBUG_INFO, "  EfiClearMemoryAttributes:0x%Lx\n", EfiClearMemoryAttributes));
 
   Status = gBS->InstallMultipleProtocolInterfaces (
                   &mCpuHandle,
