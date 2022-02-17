@@ -106,7 +106,6 @@ EFI_SMM_BASE2_PROTOCOL            *mSmmBase2 = NULL;
 UINTN                     *mPFEntryCount;
 UINT64                    *(*mLastPFEntryPointer)[MAX_PF_ENTRY_COUNT];
 
-UINT64 mAddressEncMask;
 
 /**
  Check if current execution environment is in SMM mode or not, via
@@ -1610,19 +1609,19 @@ EfiGetMemoryAttributes (
 
     switch (PageAttr) {
       case Page4K:
-        Address      = *PageEntry & ~mAddressEncMask & PAGING_4K_ADDRESS_MASK_64;
+        Address      = *PageEntry & ~AddressEncMask & PAGING_4K_ADDRESS_MASK_64;
         Size        -= (SIZE_4KB - (BaseAddress - Address));
         BaseAddress += (SIZE_4KB - (BaseAddress - Address));
         break;
 
       case Page2M:
-        Address      = *PageEntry & ~mAddressEncMask & PAGING_2M_ADDRESS_MASK_64;
+        Address      = *PageEntry & ~AddressEncMask & PAGING_2M_ADDRESS_MASK_64;
         Size        -= SIZE_2MB - (BaseAddress - Address);
         BaseAddress += SIZE_2MB - (BaseAddress - Address);
         break;
 
       case Page1G:
-        Address      = *PageEntry & ~mAddressEncMask & PAGING_1G_ADDRESS_MASK_64;
+        Address      = *PageEntry & ~AddressEncMask & PAGING_1G_ADDRESS_MASK_64;
         Size        -= SIZE_1GB - (BaseAddress - Address);
         BaseAddress += SIZE_1GB - (BaseAddress - Address);
         break;
