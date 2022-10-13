@@ -1474,7 +1474,10 @@ EfiSetMemoryAttributes (
   BOOLEAN        IsModified;
   BOOLEAN        IsSplitted;
 
-  DEBUG((DEBUG_INFO, "%a: 0x%lx - 0x%lx (0x%lx)\n", __FUNCTION__, BaseAddress, Length, Attributes));
+  DEBUG((DEBUG_INFO, "%a: 0x%lx - 0x%lx (0x%lx) -%s%s%s\n", __FUNCTION__, BaseAddress, Length, Attributes,
+	 (Attributes & EFI_MEMORY_RP) ? L"r" : L"",
+	 (Attributes & EFI_MEMORY_RO) ? L"w" : L"",
+	 (Attributes & EFI_MEMORY_XP) ? L"x" : L""));
 
   if (Attributes == 0) {
     DEBUG ((DEBUG_ERROR, "%a: Error - Attributes == 0\n", __FUNCTION__));
@@ -1545,7 +1548,10 @@ EfiClearMemoryAttributes (
   BOOLEAN        IsModified;
   BOOLEAN        IsSplitted;
 
-  DEBUG((DEBUG_INFO, "%a: 0x%lx - 0x%lx (0x%lx)\n", __FUNCTION__, BaseAddress, Length, Attributes));
+  DEBUG((DEBUG_INFO, "%a: 0x%lx - 0x%lx (0x%lx) +%s%s%s\n", __FUNCTION__, BaseAddress, Length, Attributes,
+	 (Attributes & EFI_MEMORY_RP) ? L"r" : L"",
+	 (Attributes & EFI_MEMORY_RO) ? L"w" : L"",
+	 (Attributes & EFI_MEMORY_XP) ? L"x" : L""));
 
   if (Attributes == 0) {
     DEBUG ((DEBUG_ERROR, "%a: Error - Attributes == 0\n", __FUNCTION__));
@@ -1692,7 +1698,11 @@ EfiGetMemoryAttributes (
     MemAttr = *Attributes;
   } while (Size > 0);
 
-  DEBUG ((DEBUG_INFO, "%a: Attributes is 0x%lx\n", __FUNCTION__, *Attributes));
+  DEBUG ((DEBUG_INFO, "%a: 0x%lx - 0x%lx Attributes is 0x%lx (%c%c%c)\n",
+	  __FUNCTION__, BaseAddress, Length, *Attributes,
+	  (*Attributes & EFI_MEMORY_RP) ? '-' : 'r',
+	  (*Attributes & EFI_MEMORY_RO) ? '-' : 'w',
+	  (*Attributes & EFI_MEMORY_XP) ? '-' : 'x'));
 
   show_debug = 0;
   return EFI_SUCCESS;
